@@ -11,10 +11,11 @@ import numpy as np
 # ---------------------------------------------------------
 # Longitude and Latitude for your three locations
 locations = {
-    'Orient Harbor, NY': {'lon': -72.302, 'lat': 41.139, 'color': 'red'},
-    'Cowyard, NY':       {'lon': -72.420, 'lat': 40.890, 'color': 'blue'},
-    'Wachapreague, VA':  {'lon': -75.686, 'lat': 37.606, 'color': 'green'}
+    'Orient Harbor, NY': {'lon': -72.30675, 'lat': 41.13664, 'color': 'red'},
+    'Cowyard, NY':       {'lon': -72.56537, 'lat': 40.9101, 'color': 'blue'},
+    'Wachapreague, VA':  {'lon': -75.68809, 'lat': 37.60437, 'color': 'green'}
 }
+40.9101
 
 # Define the boundaries (extents) for each map: [lon_min, lon_max, lat_min, lat_max]
 extent_main = [-77.5, -69.5, 36.0, 42.5]  # East Coast
@@ -40,7 +41,7 @@ def format_map(ax, extent, draw_states=False):
     if draw_states:
         states_provinces = cfeature.NaturalEarthFeature(
             category='cultural', name='admin_1_states_provinces_lines',
-            scale='50m', facecolor='none')
+            scale='10m', facecolor='none')
         ax.add_feature(states_provinces, edgecolor='black', linewidth=0.5)
 
     # Add Gridlines (Lat/Lon)
@@ -190,8 +191,8 @@ def add_zoom_lines(ax_main, ax_zoom, extent, color='black'):
     ax_main.add_artist(con2)
 
 # Draw the lines for both regions
-add_zoom_lines(ax_main, ax_ny, extent_ny)
-add_zoom_lines(ax_main, ax_va, extent_va)
+# add_zoom_lines(ax_main, ax_ny, extent_ny)
+# add_zoom_lines(ax_main, ax_va, extent_va)
 
 # ---------------------------------------------------------
 # 8. Final Polish
