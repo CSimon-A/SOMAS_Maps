@@ -11,8 +11,8 @@ import numpy as np
 # ---------------------------------------------------------
 # Longitude and Latitude for your three locations
 locations = {
-    'Orient Harbor, NY': {'lon': -72.30675, 'lat': 41.13664, 'color': 'red'},
-    'Cowyard, NY':       {'lon': -72.56537, 'lat': 40.9101, 'color': 'blue'},
+    ' Orient Harbor, NY': {'lon': -72.30675, 'lat': 41.13664, 'color': 'red'},
+    ' Cow Yard, NY':       {'lon': -72.56537, 'lat': 40.9101, 'color': 'blue'},
     'Wachapreague, VA':  {'lon': -75.68809, 'lat': 37.60437, 'color': 'green'}
 }
 40.9101
@@ -20,7 +20,7 @@ locations = {
 # Define the boundaries (extents) for each map: [lon_min, lon_max, lat_min, lat_max]
 extent_main = [-77.5, -69.5, 36.0, 42.5]  # East Coast
 extent_ny   = [-72.8, -71.8, 40.7, 41.3]  # Long Island Zoom
-extent_va   = [-76.1, -75.3, 37.05, 37.9]  # Virginia Zoom
+extent_va   = [-76.05, -75.25, 37.05, 37.9]  # Virginia Zoom
 
 # Styling
 land_color = '#cccccc'  # Gray
@@ -143,7 +143,7 @@ format_map(ax_ny, extent_ny)
 add_scale_bar(ax_ny, length_km=20, location=(-72.15, 40.725), segments=2)
 
 # Plot NY markers
-for name in ['Orient Harbor, NY', 'Cowyard, NY']:
+for name in [' Orient Harbor, NY', ' Cow Yard, NY']:
     data = locations[name]
     ax_ny.plot(data['lon'], data['lat'], marker='o', color=data['color'], 
                markersize=10, markeredgecolor='black', transform=ccrs.PlateCarree(), zorder=5)
@@ -160,7 +160,7 @@ add_scale_bar(ax_va, length_km=20, location=(-75.7, 37.1), segments=2)
 data = locations['Wachapreague, VA']
 ax_va.plot(data['lon'], data['lat'], marker='o', color=data['color'], 
            markersize=10, markeredgecolor='black', transform=ccrs.PlateCarree(), zorder=5)
-ax_va.text(data['lon'] + 0.02, data['lat'], 'Wachapreague', 
+ax_va.text(data['lon'] + 0.02, data['lat'], ' Wachapreague', 
            transform=ccrs.PlateCarree(), fontsize=10, fontweight='bold', va='center')
 
 # ---------------------------------------------------------

@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>East Coast Map Viewer</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      display: flex;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      height: 100vh;
+      overflow: hidden;
+    }
+    
+    #sidebar {
+      width: 340px;
+      padding: 20px;
+      background-color: #f8f9fa;
+      border-right: 2px solid #ccc;
+      box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+      z-index: 1000;
+      overflow-y: auto;
+    }
+    #sidebar h2 { margin-top: 0; color: #333; }
+    #sidebar h3 { color: #555; margin-top: 25px; margin-bottom: 10px; font-size: 16px; border-bottom: 1px solid #ccc; padding-bottom: 5px;}
+    .form-group { margin-bottom: 15px; }
+    label { display: block; font-weight: bold; margin-bottom: 5px; font-size: 14px; }
+    input, select {
+      width: 100%;
+      padding: 8px;
+      box-sizing: border-box;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+    button.action-btn {
+      width: 100%;
+      padding: 12px;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      font-weight: bold;
+      cursor: pointer;
+      margin-top: 10px;
+    }
+    #add-btn { background-color: #28a745; }
+    #add-btn:hover { background-color: #218838; }
+    
+    #save-btn { background-color: #007bff; margin-bottom: 15px; }
+    #save-btn:hover { background-color: #0069d9; }
+
+    .checkbox-group label {
+      display: flex;
+      align-items: center;
+      font-weight: bold;
+      cursor: pointer;
+      margin-bottom: 12px;
+      font-size: 14px;
+    }
+    .checkbox-group input[type="checkbox"] {
+      width: 18px;
+      height: 18px;
+      margin-right: 10px;
+      cursor: pointer;
+    }
+
+    #map {
+      flex-grow: 1;
+      height: 100vh;
+      background-color: #ffffff; 
+    }
+
+    .leaflet-control-north {
+      background: white;
+      padding: 5px 15px;
+      border: 2px solid rgba(0,0,0,0.2);
+      border-radius: 4px;
+      font-weight: bold;
+      font-size: 18px;
+      text-align: center;
+      color: #333;
+      box-shadow: 0 1px 5px rgba(0,0,0,0.65);
+    }
+
+    .cartopy-label {
+      background: transparent;
+      border: none;
+      box-shadow: none;
+      font-weight: bold;
+      font-size: 13px;
+      color: black;
+      text-shadow: 1.5px 1.5px 0 #fff, -1.5px -1.5px 0 #fff, 1.5px -1.5px 0 #fff, -1.5px 1.5px 0 #fff, 0 1.5px 0 #fff, 1.5px 0 0 #fff, 0 -1.5px 0 #fff, -1.5px 0 0 #fff;
+    }
+    .cartopy-label::before { display: none; }
+
+    .grid-label-icon {
+      pointer-events: none;
+    }
+    .grid-label {
+      font-size: 11px;
+      font-weight: bold;
+      color: #555;
+      text-shadow: 1px 1px 0px #fff, -1px -1px 0px #fff, 1px -1px 0px #fff, -1px 1px 0px #fff, 0px 1px 0px #fff, 0px -1px 0px #fff, 1px 0px 0px #fff, -1px 0px 0px #fff;
+      white-space: nowrap;
+    }
+  </style>
+</head>
+<body>
+
+  <div id="sidebar">
+    <h2>Map Viewer Controls</h2>
+    <p style="font-size: 14px; color: #666; margin-bottom: 20px;">Use this interface to generate survey location maps.</p>
+    
+    <button id="save-btn" class="action-btn" onclick="saveMapAsImage()">💾 Save as Image</button>
+
+    <h3>Map Display</h3>
+    <div class="checkbox-group">
+      <label><input type="checkbox" id="hide-roads" checked onchange="updateMapLayers()"> Hide roads (Cartopy Mode)</label>
+      <label><input type="checkbox" id="show-borders" checked onchange="updateMapLayers()"> Show state/country borders</label>
+      <label><input type="checkbox" id="hide-city-names" checked onchange="updateMapLayers()"> Hide background city names</label>
+      <label><input type="checkbox" id="show-grid" checked onchange="updateMapLayers()"> Show latitude/longitude grid</label>
+      <label><input type="checkbox" id="show-point-names" checked onchange="togglePointNames()"> Show survey location names</label>
+    </div>
+
+    <h3>Add Survey Point</h3>
+    <p style="font-size: 13px; color: #666; margin-bottom: 10px;">Enter coordinates or simply <b>click on the map</b>. Click an existing point to remove it.</p>
+    
+    <div class="form-group">
+      <label>Location Name</label>
+      <input type="text" id="loc-name" placeholder="e.g., Peconic Bay">
+    </div>
+    <div class="form-group">
+      <label>Latitude</label>
+      <input type="number" id="loc-lat" placeholder="e.g., 40.92" step="any">
+    </div>
+    <div class="form-group">
+      <label>Longitude (Negative for West)</label>
+      <input type="number" id="loc-lon" placeholder="e.g., -72.48" step="any">
+    </div>
+    <div class="form-group">
+      <label>Marker Color</label>
+      <select id="loc-color">
+        <option value="red">Red</option>
+        <option value="blue">Blue</option>
+        <option value="green">Green</option>
+        <option value="orange">Orange</option>
+        <option value="purple">Purple</option>
+        <option value="black">Black</option>
+      </select>
+    </div>
+    <button id="add-btn" class="action-btn" onclick="addPointFromForm()">Add Point to Map</button>
+
+  </div>
+
+  <div id="map"></div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/topojson-client@3"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  
+  <script>
+    var eastCoastBounds = [
+      [10.0, -90.0], 
+      [54.0, -50.0]  
+    ];
+
+    var map = L.map('map', {
+      center: [40.8, -72.8], 
+      zoom: 8,
+      minZoom: 4, 
+      maxBounds: eastCoastBounds,
+      maxBoundsViscosity: 1.0,
+      preferCanvas: true,
+      
+      // Keep the ultra-smooth zoom precision
+      zoomSnap: 0.1,   
+      zoomDelta: 0.1   
+    });
+
+    // --- Create Custom Panes to enforce rendering order ---
+    map.createPane('landmassPane');
+    map.getPane('landmassPane').style.zIndex = 390;
+
+    map.createPane('lakesPane');
+    map.getPane('lakesPane').style.zIndex = 395;
+
+    map.createPane('bordersPane');
+    map.getPane('bordersPane').style.zIndex = 400;
+
+    var activeMarkers = [];
+
+    // --- Define Map Layers ---
+    var cartoRoads = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png', {
+      attribution: '&copy; OpenStreetMap contributors'
+    });
+    var cartoLabels = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}{r}.png');
+    
+    var cartopyBase = L.layerGroup();
+    var bordersLayer = L.layerGroup();
+
+    // 1. High-res physical landmass
+    fetch('https://unpkg.com/world-atlas@2/land-10m.json')
+      .then(res => res.json())
+      .then(topoData => {
+        var geojsonData = topojson.feature(topoData, topoData.objects.land);
+        L.geoJSON(geojsonData, { 
+          pane: 'landmassPane', 
+          style: { fillColor: '#cccccc', color: '#000000', weight: 0.8, fillOpacity: 1 } 
+        }).addTo(cartopyBase);
+      });
+
+    // 2. High-res Lakes
+    fetch('https://cdn.jsdelivr.net/gh/nvkelso/natural-earth-vector@5.1.2/geojson/ne_10m_lakes.geojson')
+      .then(res => res.json())
+      .then(geojsonData => {
+        L.geoJSON(geojsonData, { 
+          pane: 'lakesPane', 
+          style: { fillColor: '#ffffff', color: '#000000', weight: 0.8, fillOpacity: 1 } 
+        }).addTo(cartopyBase);
+      });
+
+    // 3. Internal US State Borders
+    fetch('https://unpkg.com/us-atlas@3/states-10m.json')
+      .then(res => res.json())
+      .then(topoData => {
+        var internalBorders = topojson.mesh(topoData, topoData.objects.states, function(a, b) { return a !== b; });
+        L.geoJSON({ type: "Feature", geometry: internalBorders }, { 
+          pane: 'bordersPane', 
+          style: { color: '#000000', weight: 0.5, fill: false } 
+        }).addTo(bordersLayer);
+      });
+
+    // 4. Internal Country Borders
+    fetch('https://unpkg.com/world-atlas@2/countries-10m.json')
+      .then(res => res.json())
+      .then(topoData => {
+        var internalBorders = topojson.mesh(topoData, topoData.objects.countries, function(a, b) { return a !== b; });
+        L.geoJSON({ type: "Feature", geometry: internalBorders }, { 
+          pane: 'bordersPane', 
+          style: { color: '#000000', weight: 0.8, fill: false } 
+        }).addTo(bordersLayer);
+      });
+
+    // --- Dynamic Lat/Lon Grid Engine ---
+    var gridLayer = L.layerGroup();
+    var gridStyle = { color: '#888888', weight: 0.8, dashArray: '4, 4', interactive: false };
+
+    function drawDynamicGrid() {
+        gridLayer.clearLayers();
+        
+        var bounds = map.getBounds();
+        var west = bounds.getWest();
+        var east = bounds.getEast();
+        var south = bounds.getSouth();
+        var north = bounds.getNorth();
+
+        var zoom = map.getZoom();
+        
+        var step = 5.0; 
+        if (zoom >= 12) step = 0.1;
+        else if (zoom >= 10) step = 0.25;
+        else if (zoom >= 9) step = 0.5;   
+        else if (zoom >= 6) step = 1.0;   
+        else if (zoom >= 5) step = 2.0;
+        else step = 5.0; 
+
+        var latStart = Math.ceil(south / step) * step;
+        var lonStart = Math.ceil(west / step) * step;
+
+        var labelLon = west + (east - west) * 0.005; 
+        var labelLat = south + (north - south) * 0.015; 
+
+        for (var lat = latStart; lat <= north; lat += step) {
+            L.polyline([[lat, -180], [lat, 180]], gridStyle).addTo(gridLayer);
+            var text = lat.toFixed(step < 1 ? 2 : 0).replace('.00', '') + '°N';
+            var icon = L.divIcon({
+                className: 'grid-label-icon',
+                html: `<div class="grid-label">${text}</div>`,
+                iconSize: [50, 20],
+                iconAnchor: [0, 10] 
+            });
+            L.marker([lat, labelLon], { icon: icon, interactive: false }).addTo(gridLayer);
+        }
+
+        for (var lon = lonStart; lon <= east; lon += step) {
+            L.polyline([[-90, lon], [90, lon]], gridStyle).addTo(gridLayer);
+            var text = Math.abs(lon).toFixed(step < 1 ? 2 : 0).replace('.00', '') + '°W';
+            var icon = L.divIcon({
+                className: 'grid-label-icon',
+                html: `<div class="grid-label">${text}</div>`,
+                iconSize: [50, 20],
+                iconAnchor: [25, 0] 
+            });
+            L.marker([labelLat, lon], { icon: icon, interactive: false }).addTo(gridLayer);
+        }
+    }
+
+    // PERFORMANCE FIX: Changed from 'move' to 'moveend'
+    // The grid will now stay perfectly still during animations and snap 
+    // to the edges the moment you stop scrolling/dragging, eliminating all lag.
+    map.on('moveend', drawDynamicGrid);
+
+    // --- Controls ---
+    L.control.scale({ position: 'bottomright', imperial: true, metric: true }).addTo(map);
+
+    var NorthArrow = L.Control.extend({
+      options: { position: 'topright' },
+      onAdd: function (map) {
+        var div = L.DomUtil.create('div', 'leaflet-control-north');
+        div.innerHTML = '⬆ N';
+        div.title = 'North';
+        return div;
+      }
+    });
+    map.addControl(new NorthArrow());
+
+    // --- Toggling Map Layers ---
+    window.updateMapLayers = function() {
+      var hideRoads = document.getElementById('hide-roads').checked;
+      var hideCities = document.getElementById('hide-city-names').checked;
+      var showGrid = document.getElementById('show-grid').checked;
+      var showBorders = document.getElementById('show-borders').checked;
+
+      if (hideRoads) {
+          map.removeLayer(cartoRoads);
+          map.addLayer(cartopyBase); 
+      } else {
+          map.removeLayer(cartopyBase);
+          map.addLayer(cartoRoads);  
+      }
+
+      if (showBorders) {
+          map.addLayer(bordersLayer);
+      } else {
+          map.removeLayer(bordersLayer);
+      }
+
+      if (hideCities) {
+          map.removeLayer(cartoLabels);
+      } else {
+          map.addLayer(cartoLabels);
+      }
+
+      if (showGrid) {
+          if (!map.hasLayer(gridLayer)) {
+              map.addLayer(gridLayer);
+              drawDynamicGrid(); 
+          }
+      } else {
+          if (map.hasLayer(gridLayer)) {
+              map.removeLayer(gridLayer);
+          }
+      }
+    };
+    
+    updateMapLayers();
+
+    // --- Toggling Point Text Labels ---
+    window.togglePointNames = function() {
+      var showNames = document.getElementById('show-point-names').checked;
+      activeMarkers.forEach(function(marker) {
+        marker.unbindTooltip(); 
+        if (showNames && marker.pointName) {
+            marker.bindTooltip(marker.pointName, {
+                permanent: true,
+                direction: 'right',
+                className: 'cartopy-label',
+                offset: [10, 0] 
+            });
+        }
+      });
+    };
+
+    // --- Point Generation Engine ---
+    function getCustomIcon(color) {
+      return L.divIcon({
+        className: 'custom-icon',
+        html: `<div style="background-color: ${color}; width: 16px; height: 16px; border-radius: 50%; border: 2px solid black; box-shadow: 1px 1px 3px rgba(0,0,0,0.5);"></div>`,
+        iconSize: [20, 20],
+        iconAnchor: [10, 10], 
+        popupAnchor: [0, -10] 
+      });
+    }
+
+    function createSurveyPoint(name, lat, lon, color) {
+        var marker = L.marker([lat, lon], { icon: getCustomIcon(color) });
+        marker.pointName = name;
+
+        var popupContent = document.createElement('div');
+        popupContent.innerHTML = `<b style="font-size:14px;">${name}</b><br>Lat: ${lat.toFixed(4)}<br>Lon: ${lon.toFixed(4)}<br><br>`;
+        
+        var removeBtn = document.createElement('button');
+        removeBtn.innerText = '🗑️ Remove Point';
+        removeBtn.style.cssText = 'background: #dc3545; color: white; border: none; padding: 6px; border-radius: 4px; cursor: pointer; width: 100%; font-weight:bold;';
+        
+        removeBtn.onclick = function() {
+            map.removeLayer(marker); 
+            activeMarkers = activeMarkers.filter(m => m !== marker); 
+        };
+        
+        popupContent.appendChild(removeBtn);
+        marker.bindPopup(popupContent);
+
+        marker.addTo(map);
+        activeMarkers.push(marker);
+
+        togglePointNames();
+        
+        return marker;
+    }
+
+    // Default Load Data
+    var initialLocations = [
+      { name: 'Orient Harbor', lat: 41.13664, lon: -72.30675, color: 'red' },
+      { name: 'Cow Yard',      lat: 40.9101,  lon: -72.56537, color: 'blue' },
+      { name: 'Wachapreague',  lat: 37.6000,  lon: -75.6800,  color: 'green'}
+    ];
+
+    initialLocations.forEach(function(loc) {
+      createSurveyPoint(loc.name, loc.lat, loc.lon, loc.color);
+    });
+
+    // Form Click Add
+    window.addPointFromForm = function() {
+      var name = document.getElementById('loc-name').value || "New Location";
+      var lat = parseFloat(document.getElementById('loc-lat').value);
+      var lon = parseFloat(document.getElementById('loc-lon').value);
+      var color = document.getElementById('loc-color').value;
+
+      if(isNaN(lat) || isNaN(lon)) {
+        alert("Please enter valid numbers for Latitude and Longitude.");
+        return;
+      }
+
+      createSurveyPoint(name, lat, lon, color);
+      map.flyTo([lat, lon], 9); 
+      
+      document.getElementById('loc-name').value = '';
+      document.getElementById('loc-lat').value = '';
+      document.getElementById('loc-lon').value = '';
+    };
+
+    // Map Click Add
+    map.on('click', function(e) {
+      var name = prompt("Enter a name for this survey location:");
+      if (name === null || name.trim() === "") return;
+
+      var color = prompt("Enter a color (e.g., red, blue, green, orange, purple, black):", "red");
+      if (color === null || color.trim() === "") return; 
+
+      createSurveyPoint(name, e.latlng.lat, e.latlng.lng, color.toLowerCase());
+    });
+
+    // --- Image Export Logic ---
+    window.saveMapAsImage = function() {
+      map.closePopup(); 
+      
+      setTimeout(() => {
+          html2canvas(document.getElementById('map'), { 
+            useCORS: true,
+            allowTaint: true,
+            backgroundColor: "#ffffff" 
+          }).then(canvas => {
+            var date = new Date().toISOString().slice(0, 10);
+            var filename = `Project_Map_${date}.png`;
+
+            var link = document.createElement('a');
+            link.href = canvas.toDataURL("image/png");
+            link.download = filename;
+            link.click();
+          });
+      }, 100);
+    };
+
+  </script>
+</body>
+</html>
