@@ -74,14 +74,27 @@
 
     .leaflet-control-north {
       background: white;
-      padding: 5px 15px;
+      padding: 8px 20px;
       border: 2px solid rgba(0,0,0,0.2);
       border-radius: 4px;
       font-weight: bold;
-      font-size: 18px;
+      font-size: 24px;
       text-align: center;
       color: #333;
       box-shadow: 0 1px 5px rgba(0,0,0,0.65);
+    }
+
+    .leaflet-bottom.leaflet-right {
+      margin-bottom: 45px; 
+      margin-right: 10px;
+    }
+    .leaflet-control-scale-line {
+      font-size: 15px !important; 
+      font-weight: bold;
+      padding: 4px 8px !important;
+      border-width: 2px !important; 
+      box-shadow: 0 1px 3px rgba(0,0,0,0.3); 
+      background: rgba(255, 255, 255, 0.85) !important;
     }
 
     .cartopy-label {
@@ -99,7 +112,7 @@
       pointer-events: none;
     }
     .grid-label {
-      font-size: 11px;
+      font-size: 18px; 
       font-weight: bold;
       color: #555;
       text-shadow: 1px 1px 0px #fff, -1px -1px 0px #fff, 1px -1px 0px #fff, -1px 1px 0px #fff, 0px 1px 0px #fff, 0px -1px 0px #fff, 1px 0px 0px #fff, -1px 0px 0px #fff;
@@ -173,13 +186,10 @@
       maxBounds: eastCoastBounds,
       maxBoundsViscosity: 1.0,
       preferCanvas: true,
-      
-      // Keep the ultra-smooth zoom precision
       zoomSnap: 0.1,   
       zoomDelta: 0.1   
     });
 
-    // --- Create Custom Panes to enforce rendering order ---
     map.createPane('landmassPane');
     map.getPane('landmassPane').style.zIndex = 390;
 
@@ -191,7 +201,6 @@
 
     var activeMarkers = [];
 
-    // --- Define Map Layers ---
     var cartoRoads = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png', {
       attribution: '&copy; OpenStreetMap contributors'
     });
@@ -200,7 +209,6 @@
     var cartopyBase = L.layerGroup();
     var bordersLayer = L.layerGroup();
 
-    // 1. High-res physical landmass
     fetch('https://unpkg.com/world-atlas@2/land-10m.json')
       .then(res => res.json())
       .then(topoData => {
@@ -211,7 +219,6 @@
         }).addTo(cartopyBase);
       });
 
-    // 2. High-res Lakes
     fetch('https://cdn.jsdelivr.net/gh/nvkelso/natural-earth-vector@5.1.2/geojson/ne_10m_lakes.geojson')
       .then(res => res.json())
       .then(geojsonData => {
@@ -221,7 +228,6 @@
         }).addTo(cartopyBase);
       });
 
-    // 3. Internal US State Borders
     fetch('https://unpkg.com/us-atlas@3/states-10m.json')
       .then(res => res.json())
       .then(topoData => {
@@ -232,7 +238,6 @@
         }).addTo(bordersLayer);
       });
 
-    // 4. Internal Country Borders
     fetch('https://unpkg.com/world-atlas@2/countries-10m.json')
       .then(res => res.json())
       .then(topoData => {
@@ -243,7 +248,6 @@
         }).addTo(bordersLayer);
       });
 
-    // --- Dynamic Lat/Lon Grid Engine ---
     var gridLayer = L.layerGroup();
     var gridStyle = { color: '#888888', weight: 0.8, dashArray: '4, 4', interactive: false };
 
@@ -269,8 +273,8 @@
         var latStart = Math.ceil(south / step) * step;
         var lonStart = Math.ceil(west / step) * step;
 
-        var labelLon = west + (east - west) * 0.005; 
-        var labelLat = south + (north - south) * 0.015; 
+        var labelLon = west + (east - west) * 0.015; 
+        var labelLat = south + (north - south) * 0.035; 
 
         for (var lat = latStart; lat <= north; lat += step) {
             L.polyline([[lat, -180], [lat, 180]], gridStyle).addTo(gridLayer);
@@ -278,8 +282,8 @@
             var icon = L.divIcon({
                 className: 'grid-label-icon',
                 html: `<div class="grid-label">${text}</div>`,
-                iconSize: [50, 20],
-                iconAnchor: [0, 10] 
+                iconSize: [100, 30], 
+                iconAnchor: [0, 25] 
             });
             L.marker([lat, labelLon], { icon: icon, interactive: false }).addTo(gridLayer);
         }
@@ -290,20 +294,22 @@
             var icon = L.divIcon({
                 className: 'grid-label-icon',
                 html: `<div class="grid-label">${text}</div>`,
-                iconSize: [50, 20],
-                iconAnchor: [25, 0] 
+                iconSize: [100, 30], 
+                // NEW: Changed from [50, 0] to [-8, 0] to push the number's start to the right of the line
+                iconAnchor: [-8, 0] 
             });
             L.marker([labelLat, lon], { icon: icon, interactive: false }).addTo(gridLayer);
         }
     }
 
-    // PERFORMANCE FIX: Changed from 'move' to 'moveend'
-    // The grid will now stay perfectly still during animations and snap 
-    // to the edges the moment you stop scrolling/dragging, eliminating all lag.
     map.on('moveend', drawDynamicGrid);
 
-    // --- Controls ---
-    L.control.scale({ position: 'bottomright', imperial: true, metric: true }).addTo(map);
+    L.control.scale({ 
+        position: 'bottomright', 
+        imperial: true, 
+        metric: true,
+        maxWidth: 250 
+    }).addTo(map);
 
     var NorthArrow = L.Control.extend({
       options: { position: 'topright' },
@@ -316,7 +322,6 @@
     });
     map.addControl(new NorthArrow());
 
-    // --- Toggling Map Layers ---
     window.updateMapLayers = function() {
       var hideRoads = document.getElementById('hide-roads').checked;
       var hideCities = document.getElementById('hide-city-names').checked;
@@ -357,7 +362,6 @@
     
     updateMapLayers();
 
-    // --- Toggling Point Text Labels ---
     window.togglePointNames = function() {
       var showNames = document.getElementById('show-point-names').checked;
       activeMarkers.forEach(function(marker) {
@@ -373,7 +377,6 @@
       });
     };
 
-    // --- Point Generation Engine ---
     function getCustomIcon(color) {
       return L.divIcon({
         className: 'custom-icon',
@@ -411,7 +414,6 @@
         return marker;
     }
 
-    // Default Load Data
     var initialLocations = [
       { name: 'Orient Harbor', lat: 41.13664, lon: -72.30675, color: 'red' },
       { name: 'Cow Yard',      lat: 40.9101,  lon: -72.56537, color: 'blue' },
@@ -422,7 +424,6 @@
       createSurveyPoint(loc.name, loc.lat, loc.lon, loc.color);
     });
 
-    // Form Click Add
     window.addPointFromForm = function() {
       var name = document.getElementById('loc-name').value || "New Location";
       var lat = parseFloat(document.getElementById('loc-lat').value);
@@ -442,7 +443,6 @@
       document.getElementById('loc-lon').value = '';
     };
 
-    // Map Click Add
     map.on('click', function(e) {
       var name = prompt("Enter a name for this survey location:");
       if (name === null || name.trim() === "") return;
@@ -453,9 +453,11 @@
       createSurveyPoint(name, e.latlng.lat, e.latlng.lng, color.toLowerCase());
     });
 
-    // --- Image Export Logic ---
     window.saveMapAsImage = function() {
       map.closePopup(); 
+
+      var zoomControls = document.querySelector('.leaflet-control-zoom');
+      if (zoomControls) zoomControls.style.display = 'none';
       
       setTimeout(() => {
           html2canvas(document.getElementById('map'), { 
@@ -470,6 +472,8 @@
             link.href = canvas.toDataURL("image/png");
             link.download = filename;
             link.click();
+          }).finally(() => {
+            if (zoomControls) zoomControls.style.display = '';
           });
       }, 100);
     };
